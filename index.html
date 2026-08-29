@@ -470,10 +470,10 @@ html[data-theme="dark"] .str { color: #93c5fd; }
     <div class="card"><h4>Prompts</h4><p>Slash-command prompts. Deployed to <code>.github/prompts/</code> for Copilot.</p></div>
     <div class="card"><h4>Agents</h4><p>Single-purpose agent files (e.g. <code>api-architect.agent.md</code>). Deployed to <code>.github/agents/</code>.</p></div>
     <div class="card"><h4>Skills</h4><p>Reusable capabilities in the Agent Skills format (<code>SKILL.md</code>). Drop-in from <code>anthropics/skills</code> or any repo.</p></div>
-    <div class="card"><h4>Hooks &amp; Commands</h4><p>Lifecycle hooks and CLI commands the agent can invoke. Governed by policy.</p></div>
+    <div class="card"><h4>Hooks &amp; Commands</h4><p>Lifecycle hooks and CLI commands the agent can invoke. Commands are sourced from <code>.apm/prompts/</code>. Both governed by policy.</p></div>
     <div class="card"><h4>MCP servers</h4><p>Declared in the same manifest. Policy-checked and trust-gated before they touch disk.</p></div>
   </div>
-  <p style="font-size:13px; color:var(--cp-text-muted); margin-top: 10px;">Eight primitive types in total (instructions, prompts, agents, skills, hooks, commands, plugins, MCP). Plugins are a bundle of the others — see slide 9.</p>
+  <p style="font-size:13px; color:var(--cp-text-muted); margin-top: 10px;">Eight primitive types in total: <strong>instructions, prompts, agents, skills, hooks, commands, plugins, MCP servers</strong>. <em>Context</em> is <em>not</em> a primitive — it is delivered <em>through</em> instructions and prompts and composed by plugins. Plugins are a bundle of the others — see slide 9.</p>
 </section>
 
 <section class="slide">
@@ -513,6 +513,8 @@ html[data-theme="dark"] .str { color: #93c5fd; }
     <div class="node" style="font-size:11px;">Codex</div>
     <div class="node" style="font-size:11px;">Gemini</div>
     <div class="node" style="font-size:11px;">Windsurf</div>
+    <div class="node" style="font-size:11px;">Grok Build</div>
+    <div class="node" style="font-size:11px;">Kiro</div>
   </div>
   <div class="card" style="margin-top: 24px;">
     <h4>Zero-config for Copilot</h4>
@@ -521,7 +523,7 @@ html[data-theme="dark"] .str { color: #93c5fd; }
     </p>
   </div>
   <p style="font-size:13px; color:var(--cp-text-muted); margin-top: 12px;">
-    The same install also emits <code>AGENTS.md</code> in the repo root — the open <a href="https://agents.md" style="color:var(--cp-link)">agents.md</a> standard that Claude Code, Cursor, OpenCode, Codex, Gemini, and Windsurf all read. <strong>You don't have to use them; if a teammate does, their agent is already configured.</strong>
+    Nine compile targets in total: Copilot, Claude, Cursor, OpenCode, Codex, Gemini, Windsurf, Grok Build, and Kiro — plus the CLI-only Antigravity target (<code>--target antigravity</code>). The same install emits <code>AGENTS.md</code> in the repo root — the open <a href="https://agents.md" style="color:var(--cp-link)">agents.md</a> standard that these harnesses read. <strong>You don't have to use them; if a teammate does, their agent is already configured.</strong>
   </p>
 </section>
 
@@ -733,7 +735,7 @@ acme/code-review/
   <div class="grid">
     <div class="card">
       <h4>Step 1 · Try it</h4>
-      <p><code>curl -sSL https://aka.ms/apm-unix | sh</code><br/>then <code>apm install microsoft/apm-sample-package</code> on a throwaway repo.</p>
+      <p><code>curl -sSL https://aka.ms/apm-unix | sh</code>&nbsp; (macOS/Linux)<br/><code>irm https://aka.ms/apm-windows | iex</code>&nbsp; (Windows)<br/>then <code>apm install microsoft/apm-sample-package</code> on a throwaway repo.</p>
     </div>
     <div class="card">
       <h4>Step 2 · Measure your repo</h4>
