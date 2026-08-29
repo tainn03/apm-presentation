@@ -1,0 +1,1044 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>APM — Agent Package Manager</title>
+<script>
+  (() => {
+    const param = new URLSearchParams(window.location.search).get("clawpilotTheme");
+    const theme =
+      param || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    document.documentElement.setAttribute("data-theme", theme);
+  })();
+</script>
+<style>
+:root {
+  color-scheme: light;
+  --cp-bg: #f7f4ef;
+  --cp-bg-elevated: #fcfbf8;
+  --cp-surface: #ffffff;
+  --cp-surface-soft: #f5f5f5;
+  --cp-border: #dedede;
+  --cp-border-strong: #919191;
+  --cp-text: #242424;
+  --cp-text-muted: #5c5c5c;
+  --cp-text-soft: #6f6f6f;
+  --cp-accent: #b11f4b;
+  --cp-accent-hover: #9a1a41;
+  --cp-accent-soft: rgba(177, 31, 75, 0.08);
+  --cp-accent-fg: #ffffff;
+  --cp-success: #16a34a;
+  --cp-danger: #dc2626;
+  --cp-warning: #f59e0b;
+  --cp-link: #0078d4;
+  --cp-shadow: 0 18px 48px rgba(0, 0, 0, 0.12);
+  --cp-overlay: rgba(255, 255, 255, 0.8);
+  --cp-panel: rgba(255, 255, 255, 0.86);
+  --cp-panel-strong: rgba(255, 255, 255, 0.96);
+  --cp-sheen: rgba(255, 255, 255, 0.55);
+  --cp-highlight: rgba(177, 31, 75, 0.12);
+}
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --cp-bg: #3d3b3a;
+  --cp-bg-elevated: #343231;
+  --cp-surface: #292929;
+  --cp-surface-soft: #2e2e2e;
+  --cp-border: #474747;
+  --cp-border-strong: #5f5f5f;
+  --cp-text: #dedede;
+  --cp-text-muted: #919191;
+  --cp-text-soft: #b0b0b0;
+  --cp-accent: #fd8ea1;
+  --cp-accent-hover: #fb7b91;
+  --cp-accent-soft: rgba(253, 142, 161, 0.14);
+  --cp-accent-fg: #1a1a1a;
+  --cp-success: #4ade80;
+  --cp-danger: #f87171;
+  --cp-warning: #fbbf24;
+  --cp-link: #4da6ff;
+  --cp-shadow: 0 18px 48px rgba(0, 0, 0, 0.32);
+  --cp-overlay: rgba(41, 41, 41, 0.88);
+  --cp-panel: rgba(41, 41, 41, 0.72);
+  --cp-panel-strong: rgba(41, 41, 41, 0.96);
+  --cp-sheen: rgba(255, 255, 255, 0.04);
+  --cp-highlight: rgba(253, 142, 161, 0.12);
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0; height: 100%; overflow: hidden;
+  background: var(--cp-bg);
+  color: var(--cp-text);
+  font-family: "Segoe UI", Aptos, Calibri, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 18px;
+  line-height: 1.5;
+}
+code, pre, kbd { font-family: Consolas, "Courier New", Courier, monospace; }
+
+.deck {
+  position: relative;
+  width: 100vw; height: 100vh;
+  overflow: hidden;
+}
+.slide {
+  position: absolute; inset: 0;
+  padding: 4vh 6vw 8vh;
+  display: none;
+  flex-direction: column;
+  background: var(--cp-bg);
+  animation: fade 0.25s ease;
+}
+.slide.active { display: flex; }
+@keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+.slide h1 {
+  font-size: clamp(28px, 3.4vw, 52px);
+  margin: 0 0 0.4em;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+}
+.slide h2 {
+  font-size: clamp(22px, 2.2vw, 32px);
+  margin: 0 0 0.3em;
+  color: var(--cp-text);
+}
+.slide h3 {
+  font-size: clamp(18px, 1.5vw, 22px);
+  color: var(--cp-text-muted);
+  margin: 0 0 1em;
+  font-weight: 500;
+}
+.slide p, .slide li { font-size: clamp(15px, 1.15vw, 19px); color: var(--cp-text); }
+.slide .eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 11px;
+  color: var(--cp-accent);
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+.slide ul { padding-left: 1.2em; margin: 0.4em 0 1em; }
+.slide li { margin: 0.3em 0; }
+.slide .grid {
+  display: grid; gap: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.slide .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.card {
+  background: var(--cp-surface);
+  border: 1px solid var(--cp-border);
+  border-radius: 16px;
+  padding: 18px 20px;
+  box-shadow: 0 0 2px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.14);
+}
+.card h4 {
+  margin: 0 0 8px; font-size: 16px;
+  color: var(--cp-accent);
+  text-transform: uppercase; letter-spacing: 0.1em;
+}
+.card p { margin: 0; color: var(--cp-text-muted); font-size: 14px; line-height: 1.55; }
+
+pre.code, .terminal {
+  background: var(--cp-bg-elevated);
+  border: 1px solid var(--cp-border);
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin: 0;
+  overflow: auto;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--cp-text);
+  white-space: pre;
+}
+.terminal {
+  background: #1d1d1d;
+  color: #e6e6e6;
+  border-color: #2a2a2a;
+}
+.terminal .prompt { color: var(--cp-accent); }
+.terminal .ok { color: #4ade80; }
+.terminal .warn { color: #fbbf24; }
+.terminal .muted { color: #9a9a9a; }
+.terminal .info { color: #4da6ff; }
+
+.kw { color: var(--cp-accent); }
+.str { color: #2563eb; }
+.cmt { color: var(--cp-text-soft); font-style: italic; }
+html[data-theme="dark"] .str { color: #93c5fd; }
+
+.chip {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--cp-accent-soft);
+  color: var(--cp-accent);
+  font-size: 12px;
+  font-weight: 600;
+  margin-right: 6px;
+}
+.btn {
+  appearance: none;
+  border: 1px solid var(--cp-border);
+  background: var(--cp-surface);
+  color: var(--cp-text);
+  padding: 8px 14px;
+  border-radius: 0.625rem;
+  font-family: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.btn:hover { background: var(--cp-accent-soft); border-color: var(--cp-accent); }
+.btn.primary {
+  background: var(--cp-accent); color: var(--cp-accent-fg); border-color: var(--cp-accent);
+}
+.btn.primary:hover { background: var(--cp-accent-hover); }
+
+/* Footer / nav */
+.footer {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  padding: 12px 24px;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px;
+  background: var(--cp-panel);
+  border-top: 1px solid var(--cp-border);
+  backdrop-filter: blur(10px);
+  font-size: 13px;
+  color: var(--cp-text-muted);
+  z-index: 10;
+}
+.footer .brand { color: var(--cp-text); font-weight: 600; }
+.footer .controls { display: flex; gap: 8px; align-items: center; }
+.progress {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  height: 3px; background: transparent; z-index: 11;
+}
+.progress > div { height: 100%; background: var(--cp-accent); transition: width 0.2s; }
+
+/* Title slide */
+.title-slide {
+  justify-content: center;
+  background:
+    radial-gradient(1200px 600px at 80% 0%, var(--cp-accent-soft), transparent 60%),
+    radial-gradient(900px 500px at 10% 100%, var(--cp-highlight), transparent 60%),
+    var(--cp-bg);
+}
+.title-slide .eyebrow { font-size: 13px; }
+.title-slide h1 {
+  font-size: clamp(40px, 5.5vw, 84px);
+  line-height: 1.02;
+  letter-spacing: -0.02em;
+  margin-bottom: 0.3em;
+}
+.title-slide .sub {
+  font-size: clamp(18px, 1.6vw, 24px);
+  color: var(--cp-text-muted);
+  max-width: 900px;
+}
+.title-slide .meta {
+  margin-top: 40px;
+  display: flex; gap: 24px; flex-wrap: wrap;
+  color: var(--cp-text-muted); font-size: 14px;
+}
+.title-slide .meta span strong { color: var(--cp-text); font-weight: 600; }
+
+.two-col {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: start;
+  flex: 1; min-height: 0;
+}
+.two-col .col { min-width: 0; }
+.full { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 16px; }
+.two-col.full { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: start; }
+.two-col.full > .col { display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+
+.demo-toolbar {
+  display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+  margin-bottom: 10px;
+}
+.demo-toolbar select, .demo-toolbar input[type="text"] {
+  background: var(--cp-surface); color: var(--cp-text);
+  border: 1px solid var(--cp-border); border-radius: 0.625rem;
+  padding: 6px 10px; font-family: inherit; font-size: 14px;
+}
+.pick-list {
+  display: flex; flex-wrap: wrap; gap: 8px;
+}
+.pick {
+  border: 1px solid var(--cp-border);
+  background: var(--cp-surface);
+  color: var(--cp-text);
+  padding: 8px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.15s;
+}
+.pick:hover { border-color: var(--cp-accent); }
+.pick.on {
+  background: var(--cp-accent); color: var(--cp-accent-fg); border-color: var(--cp-accent);
+}
+
+.diff-add { color: var(--cp-success); }
+.diff-del { color: var(--cp-danger); }
+
+.kbd {
+  border: 1px solid var(--cp-border);
+  border-bottom-width: 2px;
+  border-radius: 6px;
+  padding: 1px 6px;
+  font-size: 12px;
+  background: var(--cp-surface);
+  color: var(--cp-text-muted);
+}
+
+.help {
+  position: fixed; top: 16px; right: 16px;
+  background: var(--cp-panel-strong);
+  border: 1px solid var(--cp-border);
+  border-radius: 12px;
+  padding: 16px 20px;
+  font-size: 13px;
+  color: var(--cp-text-muted);
+  display: none;
+  z-index: 20;
+  max-width: 320px;
+}
+.help.open { display: block; }
+.help h4 { margin: 0 0 8px; color: var(--cp-text); }
+.help dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; margin: 0; }
+.help dt { color: var(--cp-text); font-weight: 600; }
+
+/* Pillar diagram */
+.pillars { display: flex; gap: 16px; margin-top: 16px; flex-wrap: wrap; }
+.pillar {
+  flex: 1; min-width: 220px;
+  background: var(--cp-surface);
+  border: 1px solid var(--cp-border);
+  border-radius: 16px;
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+}
+.pillar::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+  background: var(--cp-accent);
+}
+.pillar h4 { margin: 0 0 8px; font-size: 18px; }
+.pillar p { margin: 0; color: var(--cp-text-muted); font-size: 14px; }
+
+/* flow diagram */
+.flow {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin-top: 12px;
+}
+.flow .node {
+  background: var(--cp-surface);
+  border: 1px solid var(--cp-border);
+  border-radius: 12px;
+  padding: 12px 16px;
+  text-align: center;
+  font-size: 13px;
+  min-width: 120px;
+}
+.flow .node.accent { border-color: var(--cp-accent); background: var(--cp-accent-soft); color: var(--cp-accent); font-weight: 600; }
+.flow .arrow { color: var(--cp-text-muted); font-size: 20px; }
+
+@media (max-width: 900px) {
+  .two-col, .slide .grid, .slide .grid-2 { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="deck" id="deck"></div>
+
+<div class="help" id="help">
+  <h4>Shortcuts</h4>
+  <dl>
+    <dt>← / →</dt><dd>Prev / Next slide</dd>
+    <dt>Home / End</dt><dd>First / Last slide</dd>
+    <dt>F</dt><dd>Fullscreen</dd>
+    <dt>T</dt><dd>Toggle light / dark</dd>
+    <dt>?</dt><dd>Toggle this help</dd>
+  </dl>
+</div>
+
+<div class="footer">
+  <div class="brand">APM — Agent Package Manager</div>
+  <div class="controls">
+    <button class="btn" id="prev">← Prev</button>
+    <span id="counter">1 / 1</span>
+    <button class="btn primary" id="next">Next →</button>
+    <button class="btn" id="theme" title="Toggle theme">◐</button>
+    <button class="btn" id="helpBtn" title="Shortcuts">?</button>
+  </div>
+</div>
+<div class="progress"><div id="progressBar" style="width:0"></div></div>
+
+<!-- ============ SLIDES ============ -->
+<template id="slides">
+
+<section class="slide title-slide">
+  <div class="eyebrow">Microsoft · Open Source</div>
+  <h1>APM</h1>
+  <div class="sub">A dependency manager for AI agents. <strong>Portable</strong> by manifest, <strong>secure</strong> by default, <strong>governed</strong> by policy — and how it pairs with <strong>AgentRC</strong>.</div>
+  <div class="meta">
+    <span><strong>For:</strong> Developers &amp; Architects</span>
+    <span><strong>Duration:</strong> 30 min + Q&amp;A</span>
+    <span><strong>Speaker:</strong> Soham Dasgupta · Sr. Partner Solution Architect</span>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">The problem</div>
+  <h1>Every agent. Every dev. Every machine. Different setup.</h1>
+  <div class="two-col" style="margin-top: 12px;">
+    <div class="col">
+      <h2>What teams ship today</h2>
+      <ul>
+        <li>A README that says "install these extensions"</li>
+        <li>A copy-pasted <code>copilot-instructions.md</code></li>
+        <li>Ad-hoc MCP server configs in three different files</li>
+        <li>Skills, prompts, and rules duplicated per agent (Copilot today, maybe Claude or Cursor tomorrow)</li>
+        <li>No version pinning. No integrity. No reproducibility.</li>
+      </ul>
+    </div>
+    <div class="col">
+      <h2>The result</h2>
+      <ul>
+        <li>"It works on my agent" 🤷</li>
+        <li>Drift between developers</li>
+        <li>Silent context rot as the repo evolves</li>
+        <li>No way to ship agent context as a versioned artifact</li>
+        <li>No security boundary around prompts &mdash; which <em>are</em> programs for an LLM</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">The idea</div>
+  <h1>What if agent context had a <span style="color:var(--cp-accent)">package.json</span>?</h1>
+  <h3>One manifest. One install. Every agent, configured.</h3>
+  <div class="full">
+    <pre class="code"><span class="cmt"># apm.yml — ships with your repo</span>
+<span class="kw">name</span>: your-project
+<span class="kw">version</span>: 1.0.0
+<span class="kw">dependencies</span>:
+  <span class="kw">apm</span>:
+    <span class="cmt"># Skills, prompts, agents, plugins — from any git repo, version-pinned</span>
+    - github/awesome-copilot/skills/review-and-refactor
+    - github/awesome-copilot/plugins/context-engineering<span class="str">#v2.1</span>
+    - microsoft/apm-sample-package<span class="str">#v1.0.0</span>
+  <span class="kw">mcp</span>:
+    <span class="cmt"># MCP servers governed by the same manifest (registry entries are bare strings)</span>
+    - io.github.github/github-mcp-server</pre>
+    <pre class="terminal"><span class="muted">$</span> <span class="prompt">git clone &lt;repo&gt; &amp;&amp; cd &lt;repo&gt;</span>
+<span class="muted">$</span> <span class="prompt">apm install</span>
+<span class="info">→</span> resolving 14 packages…
+<span class="info">→</span> writing .github/copilot-instructions.md
+<span class="info">→</span> writing .github/prompts/, .github/instructions/
+<span class="info">→</span> writing AGENTS.md (read by Claude, Cursor, Codex, …)
+<span class="ok">✓ every agent in the repo is configured</span></pre>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">The three promises</div>
+  <h1>What APM guarantees</h1>
+  <div class="pillars">
+    <div class="pillar">
+      <h4>1. Portable by manifest</h4>
+      <p>One <code>apm.yml</code> describes every primitive — instructions, skills, prompts, agents, hooks, plugins, MCP servers. <code>apm install</code> reproduces the same setup across every harness on every machine. <code>apm.lock.yaml</code> pins the resolved tree.</p>
+    </div>
+    <div class="pillar">
+      <h4>2. Secure by default</h4>
+      <p>Agent context is executable in effect — a prompt is a program for an LLM. Every install scans for hidden Unicode, pins content hashes, and gates transitive MCP servers behind trust prompts.</p>
+    </div>
+    <div class="pillar">
+      <h4>3. Governed by policy</h4>
+      <p><code>apm-policy.yml</code> is enforced at install time, including transitive MCP. Tighten-only inheritance flows enterprise → org → repo.</p>
+    </div>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">Primitives</div>
+  <h1>What APM packages can contain</h1>
+  <div class="grid" style="margin-top: 8px;">
+    <div class="card"><h4>Instructions</h4><p>Repo conventions, architecture, do/don't rules. Rendered into <code>.github/copilot-instructions.md</code> (and <code>AGENTS.md</code> for non-Copilot harnesses).</p></div>
+    <div class="card"><h4>Prompts</h4><p>Slash-command prompts. Deployed to <code>.github/prompts/</code> for Copilot.</p></div>
+    <div class="card"><h4>Agents</h4><p>Single-purpose agent files (e.g. <code>api-architect.agent.md</code>). Deployed to <code>.github/agents/</code>.</p></div>
+    <div class="card"><h4>Skills</h4><p>Reusable capabilities in the Agent Skills format (<code>SKILL.md</code>). Drop-in from <code>anthropics/skills</code> or any repo.</p></div>
+    <div class="card"><h4>Hooks &amp; Commands</h4><p>Lifecycle hooks and CLI commands the agent can invoke. Governed by policy.</p></div>
+    <div class="card"><h4>MCP servers</h4><p>Declared in the same manifest. Policy-checked and trust-gated before they touch disk.</p></div>
+  </div>
+  <p style="font-size:13px; color:var(--cp-text-muted); margin-top: 10px;">Eight primitive types in total (instructions, prompts, agents, skills, hooks, commands, plugins, MCP). Plugins are a bundle of the others — see slide 9.</p>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">CLI walkthrough</div>
+  <h1>The five commands you'll actually use</h1>
+  <div class="full">
+    <div class="demo-toolbar">
+      <span style="margin-right:8px;color:var(--cp-text-muted)">Pick a flow:</span>
+      <button class="pick on" data-flow="install">apm install</button>
+      <button class="pick" data-flow="add">apm install &lt;pkg&gt;</button>
+      <button class="pick" data-flow="compile">apm compile -t copilot</button>
+      <button class="pick" data-flow="audit">apm audit</button>
+      <button class="pick" data-flow="pack">apm pack</button>
+    </div>
+    <pre class="terminal" id="cliTerm" style="flex:1;">Loading…</pre>
+    <div style="display:flex; gap:8px;">
+      <button class="btn" id="cliReplay">▶ Replay</button>
+      <span style="font-size:12px;color:var(--cp-text-muted);align-self:center;">Animated terminal — illustrative output</span>
+    </div>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">Compile targets</div>
+  <h1>Copilot-first. Portable to the rest.</h1>
+  <h3>The same packages render to whichever harness your team uses.</h3>
+  <div class="flow">
+    <div class="node accent">apm.yml</div>
+    <span class="arrow">→</span>
+    <div class="node accent">apm install</div>
+    <span class="arrow">→</span>
+    <div class="node" style="border-color:var(--cp-accent); font-weight:600;">GitHub Copilot</div>
+    <span class="arrow">+</span>
+    <div class="node" style="font-size:11px;">Claude Code</div>
+    <div class="node" style="font-size:11px;">Cursor</div>
+    <div class="node" style="font-size:11px;">OpenCode</div>
+    <div class="node" style="font-size:11px;">Codex</div>
+    <div class="node" style="font-size:11px;">Gemini</div>
+    <div class="node" style="font-size:11px;">Windsurf</div>
+  </div>
+  <div class="card" style="margin-top: 24px;">
+    <h4>Zero-config for Copilot</h4>
+    <p style="font-size:15px;">
+      <code>apm install</code> writes <code>.github/copilot-instructions.md</code>, <code>.github/prompts/</code>, <code>.github/instructions/</code>, and <code>.vscode/mcp.json</code>. VS Code and GitHub Copilot read all of these automatically — no settings to flip. APM itself dogfoods the Copilot target.
+    </p>
+  </div>
+  <p style="font-size:13px; color:var(--cp-text-muted); margin-top: 12px;">
+    The same install also emits <code>AGENTS.md</code> in the repo root — the open <a href="https://agents.md" style="color:var(--cp-link)">agents.md</a> standard that Claude Code, Cursor, OpenCode, Codex, Gemini, and Windsurf all read. <strong>You don't have to use them; if a teammate does, their agent is already configured.</strong>
+  </p>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">Interactive demo</div>
+  <h1>Assemble an <code>agents.md</code> from APM packages</h1>
+  <h3>Pick the packages your project needs. See what gets generated.</h3>
+  <div class="two-col full">
+    <div class="col">
+      <div style="margin-bottom: 8px; font-weight:600;">Available packages</div>
+      <div class="pick-list" id="pkgList"></div>
+      <div style="margin-top: 18px; font-weight:600;">Generated <code>apm.yml</code></div>
+      <pre class="code" id="ymlOut" style="margin-top: 6px;"></pre>
+    </div>
+    <div class="col">
+      <div style="margin-bottom: 8px; font-weight:600; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        <span>Generated <code>AGENTS.md</code></span>
+        <span class="chip" id="lineCount">0 lines</span>
+      </div>
+      <pre class="terminal" style="padding:10px 14px; font-size:13px; margin-bottom:8px;"><span class="muted">$</span> <span class="prompt">apm install</span>   <span class="muted"># deploys primitives + writes AGENTS.md</span></pre>
+      <pre class="code" id="mdOut" style="flex:1; min-height: 0; max-height: 50vh;"></pre>
+      <div style="font-size:12px; color:var(--cp-text-muted); margin-top:6px;">
+        <code>apm install</code> deploys primitives (skills, prompts, agents, MCP) <em>and</em> writes the rendered <code>AGENTS.md</code>. For Copilot, that includes <code>.github/copilot-instructions.md</code>, <code>.github/prompts/</code>, <code>.github/instructions/</code>, and <code>.vscode/mcp.json</code>. Use <code>apm compile</code> separately to regenerate just the rendered instructions files.
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">Plugins &amp; bundles</div>
+  <h1>Why plugins? Because a real capability is more than one file.</h1>
+  <h3>A skill is one primitive. A workflow needs several primitives bundled together.</h3>
+  <div class="two-col" style="margin-top: 4px;">
+    <div class="col">
+      <h2>Concrete example</h2>
+      <p style="color:var(--cp-text-muted); margin: 4px 0 10px;">A <strong>Code Review</strong> plugin your platform team wants every repo to have:</p>
+      <ul style="margin-top: 0;">
+        <li>📜 <strong>Instructions</strong> — review rubric (security, perf, naming)</li>
+        <li>🤖 <strong>Agent</strong> — <code>code-reviewer.agent.md</code> activated by <code>/review</code></li>
+        <li>🧰 <strong>Skill</strong> — "summarise diff" + "find missing tests"</li>
+        <li>🔌 <strong>MCP server</strong> — <code>github-mcp-server</code> for posting PR comments</li>
+      </ul>
+      <p style="font-size:14px; color:var(--cp-text-muted); margin-top: 8px;">
+        Without a bundle, every dev wires four files by hand. <strong>With <code>apm install acme/code-review</code>, all four primitives drop into the right places under <code>.github/</code> and <code>.vscode/</code> in one command — pinned in <code>apm.lock.yaml</code>.</strong>
+      </p>
+      <h2 style="margin-top:16px;">Marketplaces</h2>
+      <p style="color:var(--cp-text-muted); font-size:14px; margin:0;">Curated registries of packages. <code>apm marketplace add</code> + one <code>apm install</code>, lockfile-pinned. <code>apm pack</code> emits <code>marketplace.json</code> alongside the bundle when your manifest declares one.</p>
+    </div>
+    <div class="col">
+      <pre class="code" style="font-size:13px;"><span class="cmt"># package layout — primitives live in .apm/, not in apm.yml</span>
+acme/code-review/
+├── apm.yml                       <span class="cmt"># name, version, dependencies</span>
+├── .apm/
+│   ├── instructions/rubric.instructions.md
+│   ├── agents/code-reviewer.agent.md
+│   ├── skills/summarise-diff/SKILL.md
+│   └── skills/find-missing-tests/SKILL.md
+└── README.md
+
+<span class="cmt"># apm.yml declares only deps, not the primitives themselves</span>
+<span class="kw">name</span>: code-review
+<span class="kw">version</span>: 1.2.0
+<span class="kw">dependencies</span>:
+  <span class="kw">apm</span>:
+    - acme/shared-style-guide<span class="str">#v3</span>   <span class="cmt"># transitive dep</span>
+  <span class="kw">mcp</span>:
+    - io.github.github/github-mcp-server</pre>
+
+      <pre class="code" style="margin-top:12px; font-size:13px;"><span class="cmt"># consume it from any repo</span>
+<span class="kw">$</span> apm install acme/code-review<span class="str">#v1.2.0</span>
+
+<span class="cmt"># or pack a single-file bundle for offline / air-gapped delivery</span>
+<span class="kw">$</span> apm pack <span class="cmt"># → build/code-review/ (plugin.json + agents/ + skills/ + commands/ + hooks/ + apm.lock.yaml)</span>
+<span class="kw">$</span> apm pack --archive <span class="cmt"># → build/code-review-1.2.0.tar.gz</span></pre>
+    </div>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">Security</div>
+  <h1>Treat prompts like the programs they are</h1>
+  <div class="grid">
+    <div class="card"><h4>Unicode scanning</h4><p>Every install blocks hidden bidi / zero-width characters that can hijack agent behavior.</p></div>
+    <div class="card"><h4>Lockfile integrity</h4><p><code>apm.lock.yaml</code> records resolved sources and content hashes — full provenance, drift-proof installs. Bundles embed it too, so <code>apm install &lt;bundle&gt;</code> rehashes every file before writing.</p></div>
+    <div class="card"><h4>MCP trust gating</h4><p>Transitive MCP servers don't get installed unless explicitly declared or trusted.</p></div>
+    <div class="card"><h4>apm audit</h4><p>On-demand scan for compromised packages, hidden chars, lockfile drift. CI-friendly.</p></div>
+    <div class="card"><h4>Drift detection</h4><p>Detects when generated files diverge from what the manifest says — fail the build instead of shipping silently.</p></div>
+    <div class="card"><h4>CI/CD ready</h4><p>Official <code>microsoft/apm-action</code> for GitHub Actions. Plug it into PR checks.</p></div>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">Governance</div>
+  <h1>One policy file. Tighten-only inheritance.</h1>
+  <div class="two-col full">
+    <div class="col">
+      <h2>How it flows</h2>
+      <div class="flow" style="margin-top: 16px;">
+        <div class="node accent">Enterprise<br/>apm-policy.yml</div>
+        <span class="arrow">→</span>
+        <div class="node accent">Org<br/>apm-policy.yml</div>
+        <span class="arrow">→</span>
+        <div class="node accent">Repo<br/>apm-policy.yml</div>
+      </div>
+      <p style="margin-top: 18px; color: var(--cp-text-muted);">
+        Each level can only <em>tighten</em> the policy, never loosen it. Enforced at <code>apm install</code> time — including transitive dependencies and MCP servers.
+      </p>
+    </div>
+    <div class="col">
+      <pre class="code" style="font-size:13px;"><span class="cmt"># <org>/.github/apm-policy.yml — auto-discovered for every repo in the org</span>
+<span class="kw">name</span>: <span class="str">"Contoso Engineering Policy"</span>
+<span class="kw">version</span>: <span class="str">"1.0.0"</span>
+<span class="kw">enforcement</span>: block          <span class="cmt"># warn | block | off</span>
+
+<span class="kw">dependencies</span>:
+  <span class="kw">allow</span>:
+    - <span class="str">"contoso/**"</span>
+    - <span class="str">"microsoft/*"</span>
+  <span class="kw">deny</span>:
+    - <span class="str">"untrusted-org/**"</span>
+  <span class="kw">require</span>:
+    - contoso/agent-standards     <span class="cmt"># every repo must pull this</span>
+  <span class="kw">max_depth</span>: 5                  <span class="cmt"># cap transitive depth</span>
+  <span class="kw">require_pinned_constraint</span>: true   <span class="cmt"># ban floating refs</span>
+
+<span class="kw">mcp</span>:
+  <span class="kw">allow</span>:
+    - <span class="str">"io.github.github/*"</span>
+  <span class="kw">transport</span>:
+    <span class="kw">allow</span>: [stdio, streamable-http]
+  <span class="kw">self_defined</span>: warn           <span class="cmt"># ad-hoc MCP entries warn</span>
+
+<span class="kw">compilation</span>:
+  <span class="kw">target</span>:
+    <span class="kw">allow</span>: [copilot]              <span class="cmt"># copilot is an alias for vscode</span></pre>
+      <p style="font-size:12px; color:var(--cp-text-muted); margin-top: 6px;">
+        Wire <code>apm audit --ci --policy org</code> into PR checks — produces SARIF, renders inline on the PR diff via GitHub Code Scanning. Note: package signing is not yet implemented; lockfile presence is enforced as a baseline audit check (<code>lockfile-exists</code>), not a policy field.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">AgentRC — part 1 of 2 · <span style="color:var(--cp-warning);">experimental</span></div>
+  <h1>AgentRC: context engineering, automated</h1>
+  <h3>APM <em>distributes</em> agent context. AgentRC <em>generates</em> and <em>maintains</em> it. <span style="color:var(--cp-text-muted); font-size:14px; font-weight:400;">(repo is marked experimental — pin a commit if you adopt it)</span></h3>
+  <div class="two-col full">
+    <div class="col">
+      <h2>What</h2>
+      <p>A CLI + VS Code extension that reads your codebase and generates the files an AI agent needs to be useful: instructions, MCP config, VS Code settings, and evals.</p>
+      <h2>Why</h2>
+      <ul>
+        <li>Most repos ship <strong>no</strong> context for agents</li>
+        <li>Hand-written instructions go stale as code evolves</li>
+        <li>Without evals, you can't tell if context actually helps</li>
+      </ul>
+    </div>
+    <div class="col">
+      <pre class="terminal"><span class="muted">$</span> <span class="prompt">npx github:microsoft/agentrc readiness</span>
+<span class="info">Scoring 9 pillars · 5-level maturity model</span>
+
+  Build &amp; test         <span class="ok">L4</span>  ████████░░
+  Linting              <span class="warn">L2</span>  ████░░░░░░
+  Architecture docs    <span class="warn">L1</span>  ██░░░░░░░░
+  MCP configuration    <span class="warn">L0</span>  ░░░░░░░░░░
+  ...
+
+<span class="muted">$</span> <span class="prompt">npx github:microsoft/agentrc instructions</span>
+<span class="info">→</span> reading repo, generating .github/copilot-instructions.md
+<span class="info">→</span> generating .vscode/mcp.json
+<span class="info">→</span> generating agentrc.eval.json
+<span class="ok">✓ done</span>
+
+<span class="muted">$</span> <span class="prompt">npx github:microsoft/agentrc eval</span>
+<span class="info">→</span> running 12 evals against generated instructions
+<span class="ok">✓ 11 passed, 1 regressed</span></pre>
+    </div>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">AgentRC — part 2 of 2</div>
+  <h1>How AgentRC + APM compose</h1>
+  <h3>Generate locally with AgentRC. Distribute and version with APM.</h3>
+  <div class="flow" style="margin: 8px 0 18px;">
+    <div class="node">Your repo</div>
+    <span class="arrow">→</span>
+    <div class="node accent">agentrc<br/><span style="font-weight:400;color:var(--cp-text-muted);font-size:11px;">measure · generate · eval</span></div>
+    <span class="arrow">→</span>
+    <div class="node">.github/copilot-instructions.md<br/>.vscode/mcp.json · agentrc.eval.json</div>
+    <span class="arrow">→</span>
+    <div class="node accent">apm.yml<br/><span style="font-weight:400;color:var(--cp-text-muted);font-size:11px;">pack · publish</span></div>
+    <span class="arrow">→</span>
+    <div class="node">Org-wide<br/>apm install</div>
+  </div>
+  <div class="grid">
+    <div class="card"><h4>In your project</h4><p><code>agentrc init</code> generates your baseline, then <code>apm install org/standards</code> pulls in shared org packages on top.</p></div>
+    <div class="card"><h4>For your team</h4><p>Package your best instructions/skills as an APM package; teammates get them with one <code>apm install</code>.</p></div>
+    <div class="card"><h4>At scale</h4><p><code>apm audit</code> + <code>apm-policy.yml</code> enforce standards; <code>agentrc eval</code> in CI catches context drift.</p></div>
+  </div>
+  <p style="margin-top: 12px; font-size: 14px; color: var(--cp-text-muted);">
+    The <code>.instructions.md</code> format is shared by both tools — no conversion when moving content from AgentRC into an APM package.
+  </p>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">Adoption path</div>
+  <h1>How to start on Monday</h1>
+  <div class="grid">
+    <div class="card">
+      <h4>Step 1 · Try it</h4>
+      <p><code>curl -sSL https://aka.ms/apm-unix | sh</code><br/>then <code>apm install microsoft/apm-sample-package</code> on a throwaway repo.</p>
+    </div>
+    <div class="card">
+      <h4>Step 2 · Measure your repo</h4>
+      <p><code>npx github:microsoft/agentrc readiness</code> — gives you a maturity score and a list of missing context to add first.</p>
+    </div>
+    <div class="card">
+      <h4>Step 3 · Pin what you have</h4>
+      <p>Move your existing <code>copilot-instructions.md</code> + skills into an <code>apm.yml</code>. Commit the lockfile.</p>
+    </div>
+    <div class="card">
+      <h4>Step 4 · Share across the team</h4>
+      <p>Extract the org-wide bits into a shared APM package. Teammates run <code>apm install</code>.</p>
+    </div>
+    <div class="card">
+      <h4>Step 5 · Gate in CI</h4>
+      <p>Add <code>apm-action</code> + <code>agentrc readiness --fail-level 3</code> to PR checks. Stop drift.</p>
+    </div>
+    <div class="card">
+      <h4>Step 6 · Govern</h4>
+      <p>Roll out an <code>apm-policy.yml</code> at the org level. Tighten as you learn.</p>
+    </div>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">Wrap-up</div>
+  <h1>Three things to take away</h1>
+  <ul style="font-size: clamp(18px, 1.6vw, 26px); line-height: 1.6;">
+    <li><strong>Agent context is code.</strong> Version it, pin it, ship it like dependencies.</li>
+    <li><strong>APM gives you the manifest.</strong> AgentRC gives you the content. Together they close the loop.</li>
+    <li><strong>Security &amp; governance are not afterthoughts.</strong> Hashes, audits, policy — on every install, by default.</li>
+  </ul>
+  <div class="two-col" style="margin-top: 24px;">
+    <div class="col" style="display: flex; flex-direction: column; gap: 14px;">
+      <div class="card">
+        <h4>Links</h4>
+        <p style="font-size:14px;">
+          <a href="https://github.com/microsoft/apm" style="color:var(--cp-link)">github.com/microsoft/apm</a><br/>
+          <a href="https://microsoft.github.io/apm/" style="color:var(--cp-link)">microsoft.github.io/apm</a><br/>
+          <a href="https://github.com/microsoft/agentrc" style="color:var(--cp-link)">github.com/microsoft/agentrc</a><br/>
+          <a href="https://agents.md" style="color:var(--cp-link)">agents.md</a> · <a href="https://modelcontextprotocol.io" style="color:var(--cp-link)">modelcontextprotocol.io</a>
+        </p>
+      </div>
+      <div class="card" style="display: flex; align-items: center; gap: 14px;">
+        <img src="portfolio-qr.png" alt="Portfolio QR code" style="width: 160px; height: 160px; background: #fff; padding: 6px; border-radius: 8px; flex-shrink: 0;" />
+        <div>
+          <div style="font-size: 15px; font-weight: 600; color: var(--cp-text);">Soham Dasgupta</div>
+          <div style="font-size: 12px; color: var(--cp-text-muted); margin-top: 2px;">Sr. Partner Solution Architect</div>
+          <div style="font-size: 11px; color: var(--cp-text-soft); margin-top: 6px;">Scan for portfolio</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h4>Q &amp; A</h4>
+      <p style="font-size:14px;">Things I'd love to discuss: <em>what's the first APM package your team would build? Which MCP servers belong in your org allow-list? Where would AgentRC's eval loop fit in your CI today?</em></p>
+    </div>
+  </div>
+</section>
+
+</template>
+
+<script>
+// ---------- Slide engine ----------
+const deck = document.getElementById('deck');
+const tpl = document.getElementById('slides');
+const slides = Array.from(tpl.content.querySelectorAll('.slide'));
+slides.forEach(s => deck.appendChild(s.cloneNode(true)));
+const all = Array.from(deck.querySelectorAll('.slide'));
+let idx = 0;
+
+function show(i) {
+  idx = Math.max(0, Math.min(all.length - 1, i));
+  all.forEach((s, n) => s.classList.toggle('active', n === idx));
+  document.getElementById('counter').textContent = `${idx + 1} / ${all.length}`;
+  document.getElementById('progressBar').style.width = `${((idx + 1) / all.length) * 100}%`;
+  // Update URL hash for deep-linking
+  history.replaceState(null, '', `#${idx + 1}`);
+  // Slide-specific init
+  if (all[idx].querySelector('#cliTerm')) initCliDemo();
+  if (all[idx].querySelector('#pkgList')) initPkgDemo();
+}
+
+document.getElementById('prev').onclick = () => show(idx - 1);
+document.getElementById('next').onclick = () => show(idx + 1);
+document.getElementById('theme').onclick = toggleTheme;
+document.getElementById('helpBtn').onclick = () => document.getElementById('help').classList.toggle('open');
+
+function toggleTheme() {
+  const cur = document.documentElement.getAttribute('data-theme');
+  document.documentElement.setAttribute('data-theme', cur === 'dark' ? 'light' : 'dark');
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.target.matches('input, textarea, select')) return;
+  switch (e.key) {
+    case 'ArrowRight': case 'PageDown': case ' ': show(idx + 1); break;
+    case 'ArrowLeft': case 'PageUp': show(idx - 1); break;
+    case 'Home': show(0); break;
+    case 'End': show(all.length - 1); break;
+    case 'f': case 'F':
+      if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+      else document.exitFullscreen();
+      break;
+    case 't': case 'T': toggleTheme(); break;
+    case '?': document.getElementById('help').classList.toggle('open'); break;
+  }
+});
+
+// Deep link from hash
+const hash = parseInt(location.hash.replace('#', ''), 10);
+show(Number.isFinite(hash) && hash > 0 ? hash - 1 : 0);
+
+// ---------- CLI animated demo ----------
+const CLI_SCRIPTS = {
+  install: [
+    { t: '$ apm install', cls: 'prompt' },
+    { t: 'Resolving apm.yml…', cls: 'info', delay: 350 },
+    { t: '  → github/awesome-copilot/skills/review-and-refactor  ok', cls: 'muted', delay: 250 },
+    { t: '  → github/awesome-copilot/plugins/context-engineering@v2.1  ok', cls: 'muted', delay: 250 },
+    { t: '  → microsoft/apm-sample-package@v1.0.0  ok', cls: 'muted', delay: 250 },
+    { t: 'Scanning for hidden Unicode…  clean', cls: 'info', delay: 300 },
+    { t: 'Verifying content hashes against apm.lock.yaml…  match', cls: 'info', delay: 300 },
+    { t: 'Deploying primitives → .github/, .vscode/, AGENTS.md', cls: 'info', delay: 350 },
+    { t: '✓ 14 packages installed · 0 warnings', cls: 'ok', delay: 300 },
+  ],
+  add: [
+    { t: '$ apm install vercel-labs/agent-skills --skill deploy-to-vercel', cls: 'prompt' },
+    { t: 'Fetching package…', cls: 'info', delay: 400 },
+    { t: 'Persisting to apm.yml:', cls: 'muted', delay: 250 },
+    { t: '  + vercel-labs/agent-skills/skills/deploy-to-vercel', cls: 'ok', delay: 200 },
+    { t: 'Updating apm.lock.yaml with content hash…', cls: 'info', delay: 300 },
+    { t: '✓ added 1 skill · run `apm install` to deploy', cls: 'ok', delay: 300 },
+  ],
+  compile: [
+    { t: '$ apm compile -t copilot', cls: 'prompt' },
+    { t: 'Reading apm.lock.yaml…', cls: 'info', delay: 250 },
+    { t: 'Rendering instructions → .github/copilot-instructions.md', cls: 'info', delay: 350 },
+    { t: 'Rendering instructions → .github/instructions/*.instructions.md', cls: 'info', delay: 300 },
+    { t: 'Rendering cross-tool context → AGENTS.md', cls: 'info', delay: 300 },
+    { t: '✓ zero-config: VS Code + Copilot pick this up automatically', cls: 'ok', delay: 300 },
+    { t: 'note: prompts, agents, skills, MCP are deployed by `apm install`', cls: 'muted', delay: 250 },
+  ],
+  audit: [
+    { t: '$ apm audit', cls: 'prompt' },
+    { t: 'Scanning 14 packages…', cls: 'info', delay: 300 },
+    { t: '  hidden-unicode: 0 findings', cls: 'ok', delay: 250 },
+    { t: '  lockfile-drift: 0 findings', cls: 'ok', delay: 250 },
+    { t: '  policy-violations: 1', cls: 'warn', delay: 250 },
+    { t: '    └─ github.com/ext/legacy-rules — source not in allow-list', cls: 'warn', delay: 250 },
+    { t: 'Exit 1 — fix policy violations or update apm-policy.yml', cls: 'warn', delay: 300 },
+  ],
+  pack: [
+    { t: '$ apm install   # populate deployed_files in apm.lock.yaml first', cls: 'muted' },
+    { t: '$ apm pack', cls: 'prompt' },
+    { t: 'Bundling primitives from .apm/ …', cls: 'info', delay: 350 },
+    { t: '  + 3 instructions, 2 skills, 1 prompt, 1 agent', cls: 'muted', delay: 250 },
+    { t: 'Writing plugin.json + embedded apm.lock.yaml (SHA-256 per file)', cls: 'info', delay: 300 },
+    { t: '✓ ./build/code-review/   (target-agnostic bundle)', cls: 'ok', delay: 300 },
+    { t: '$ apm pack --archive   # single tarball for offline delivery', cls: 'prompt', delay: 350 },
+    { t: '✓ ./build/code-review-1.2.0.tar.gz', cls: 'ok', delay: 250 },
+  ],
+};
+let cliTimer = null;
+function playCli(flow) {
+  const term = document.getElementById('cliTerm');
+  if (!term) return;
+  if (cliTimer) clearTimeout(cliTimer);
+  term.innerHTML = '';
+  const lines = CLI_SCRIPTS[flow] || [];
+  let i = 0;
+  function step() {
+    if (i >= lines.length) return;
+    const ln = lines[i++];
+    const span = document.createElement('span');
+    span.className = ln.cls || '';
+    span.textContent = ln.t;
+    term.appendChild(span);
+    term.appendChild(document.createTextNode('\n'));
+    term.scrollTop = term.scrollHeight;
+    cliTimer = setTimeout(step, ln.delay || 200);
+  }
+  step();
+}
+function initCliDemo() {
+  const slide = all[idx];
+  const picks = slide.querySelectorAll('.pick[data-flow]');
+  picks.forEach(p => p.onclick = () => {
+    picks.forEach(x => x.classList.remove('on'));
+    p.classList.add('on');
+    playCli(p.dataset.flow);
+  });
+  slide.querySelector('#cliReplay').onclick = () => {
+    const active = slide.querySelector('.pick.on');
+    playCli(active ? active.dataset.flow : 'install');
+  };
+  const active = slide.querySelector('.pick.on');
+  playCli(active ? active.dataset.flow : 'install');
+}
+
+// ---------- Package assembly playground ----------
+const PACKAGES = [
+  {
+    id: 'review-and-refactor',
+    label: 'review-and-refactor',
+    source: 'github/awesome-copilot/skills/review-and-refactor',
+    kind: 'skill',
+    md: `## Review & refactor conventions
+- Review for security, perf, naming, and missing tests.
+- Refactor in small, behavior-preserving steps.
+- Prefer composition; keep modules cohesive.`
+  },
+  {
+    id: 'context-engineering',
+    label: 'context-engineering',
+    source: 'github/awesome-copilot/plugins/context-engineering#v2.1',
+    kind: 'plugin',
+    md: `## Context engineering
+- Keep instructions task-scoped; avoid kitchen-sink files.
+- Document the build/test/lint commands at the top.
+- Refresh context when architecture decisions change.`
+  },
+  {
+    id: 'api-architect',
+    label: 'api-architect.agent',
+    source: 'github/awesome-copilot/agents/api-architect.agent.md',
+    kind: 'agent',
+    md: `## API architect agent
+Activate when designing or reviewing HTTP/gRPC APIs.
+- Prefer resource-oriented design; verbs only where unavoidable.
+- Enforce idempotency on retries; document error envelopes.`
+  },
+  {
+    id: 'security-rules',
+    label: 'security-rules (GitHub)',
+    source: 'github.com/acme/coding-standards#v2.0',
+    kind: 'instructions',
+    md: `## Security rules
+- Never log secrets, tokens, or PII.
+- All outbound HTTP must use the org HTTP client (adds tracing + retries).
+- Validate every external input at the boundary.`
+  },
+  {
+    id: 'github-mcp',
+    label: 'github-mcp-server',
+    source: 'io.github.github/github-mcp-server',
+    kind: 'mcp',
+    md: `## MCP: github-mcp-server
+- Available tools: list_issues, create_pr, review_pr, search_code.
+- Scope: the repo this manifest belongs to.`
+  },
+  {
+    id: 'playwright-mcp',
+    label: 'playwright-mcp',
+    source: 'io.github.microsoft/playwright-mcp',
+    kind: 'mcp',
+    md: `## MCP: playwright-mcp
+- Available tools: browser_navigate, browser_click, browser_snapshot.
+- Use for end-to-end test authoring and debugging.`
+  },
+];
+const selected = new Set(['review-and-refactor', 'context-engineering', 'github-mcp']);
+
+function renderPicks() {
+  const wrap = document.querySelector('#pkgList');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  PACKAGES.forEach(p => {
+    const btn = document.createElement('button');
+    btn.className = 'pick' + (selected.has(p.id) ? ' on' : '');
+    btn.innerHTML = `<span class="chip" style="margin-right:6px">${p.kind}</span>${p.label}`;
+    btn.onclick = () => {
+      if (selected.has(p.id)) selected.delete(p.id); else selected.add(p.id);
+      renderPicks(); renderOutputs();
+    };
+    wrap.appendChild(btn);
+  });
+}
+function renderOutputs() {
+  const apmDeps = PACKAGES.filter(p => selected.has(p.id) && p.kind !== 'mcp');
+  const mcpDeps = PACKAGES.filter(p => selected.has(p.id) && p.kind === 'mcp');
+  const yml =
+`name: my-project
+version: 1.0.0
+dependencies:
+  apm:` +
+    (apmDeps.length ? '\n' + apmDeps.map(p => `    - ${p.source}`).join('\n') : ' []') +
+`
+  mcp:` +
+    (mcpDeps.length ? '\n' + mcpDeps.map(p => `    - ${p.source}`).join('\n') : ' []');
+
+  const md =
+`# AGENTS.md
+Generated by \`apm compile\` from apm.yml.
+
+` + PACKAGES.filter(p => selected.has(p.id)).map(p => p.md).join('\n\n') +
+(selected.size === 0 ? '\n_(no packages selected)_' : '');
+
+  document.querySelector('#ymlOut').textContent = yml;
+  document.querySelector('#mdOut').textContent = md;
+  document.querySelector('#lineCount').textContent = `${md.split('\n').length} lines`;
+}
+function initPkgDemo() {
+  renderPicks();
+  renderOutputs();
+}
+</script>
+</body>
+</html>
