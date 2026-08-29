@@ -2,9 +2,9 @@
 
 **Audience:** Developers and architects, technical depth assumed.
 **Duration:** 30 minutes + Q&A.
-**Goal:** Leave them able to (a) explain APM in one sentence, (b) run `apm install` on Monday, (c) know where AgentRC fits.
+**Goal:** Leave them able to (a) explain APM in one sentence, (b) run `apm install` on Monday, (c) know where AgentRC fits, (d) see how APM absorbs a Claude Code → Codex migration.
 
-**Pacing:** ~1.5 min per slide. Demos are the anchor — slides 6 (CLI) and 8 (playground) get more time. Compress the security/governance slides if running long.
+**Pacing:** ~1.3 min per slide. Demos are the anchor — slides 6 (CLI) and 8 (playground) get more time. The migration block (slides 12–15) adds ~3–4 minutes; if you're running long, **skip slide 13 (the mapping table)** — its content is re-covered in slides 14 and 15. Compress the security/governance slides if needed.
 
 ---
 
@@ -39,9 +39,11 @@
 
 ## Slide 5 — Primitives (1.5 min)
 
-- Quick tour of the six primitive types. Don't dwell.
-- The point: APM isn't only about instructions. **Skills, prompts, agents, plugins, MCP** — one manifest for all of them.
+- Quick tour of the **eight** primitive types. Don't dwell.
+- The point: APM isn't only about instructions. **Skills, prompts, agents, commands, hooks, plugins, MCP** — one manifest for all of them, alongside instructions.
+- Call out that **Context is not a primitive** — it's delivered *through* instructions and prompts and composed by plugins. Plugins are a bundle of the others.
 - Mention plugins are an under-appreciated angle: APM is the first tool that gives plugin authors a real dependency manager.
+- Footnote for accuracy: commands are sourced from `.apm/prompts/` (there is no separate `.apm/commands/`).
 
 ## Slide 6 — CLI walkthrough demo (3 min)
 
@@ -56,7 +58,8 @@
 ## Slide 7 — Compile targets (1.5 min)
 
 - **Lead with Copilot.** This deck is for a Copilot shop: the headline is "`apm install` is zero-config for Copilot — it writes the files `.github/` and `.vscode/` already expect."
-- Mention the other harnesses in one sentence: APM also emits `AGENTS.md` in the repo root (the open agents.md standard), so if a teammate uses Claude Code, Cursor, Codex, Gemini, OpenCode, or Windsurf, their agent is configured from the same manifest. Your hedge against agent vendor lock-in — context survives the harness.
+- Mention the other harnesses in one sentence: APM also emits `AGENTS.md` in the repo root (the open agents.md standard), so if a teammate uses Claude Code, Cursor, Codex, Gemini, Windsurf, OpenCode, Grok Build, or Kiro, their agent is configured from the same manifest. Your hedge against agent vendor lock-in — context survives the harness.
+- For accuracy: that's **nine compile targets** in total (Copilot, Claude, Cursor, Codex, Gemini, Windsurf, Grok Build, Kiro, OpenCode) — plus the **Antigravity** target which is CLI-only (`--target antigravity`).
 
 ## Slide 8 — Interactive playground (3 min)
 
@@ -98,30 +101,63 @@
 - **Bypass surfaces (for incident response):** `apm install --no-policy` and `APM_POLICY_DISABLE=1`. Mention these honestly; audit logs still record the bypass.
 - Architects' takeaway: you can roll APM out org-wide without losing control over what agents load.
 
-## Slide 12 — AgentRC, part 1 (2 min)
+## Slide 12 — Why migrate from Claude Code to Codex? (1 min)
+
+- Transition slide. Frame it as *"agent context is a dependency tree — and switching harnesses means re-packaging it."*
+- Left side (motivations): AGENTS.md is the open standard Codex pioneered; model flexibility; policy/licensing freedom; both harnesses have first-class subagents/hooks/MCP/skills — but in different formats.
+- Right side (the cost without APM): each harness expresses the *same ideas* differently — `CLAUDE.md` vs `AGENTS.md`, Markdown vs TOML subagents, JSON vs TOML hooks, `.mcp.json` vs `config.toml`. Hand-migration means rewriting every file once per target, forever.
+- Land the rhetorical question this block answers: *"What if you never had to migrate — because you only wrote the context once?"*
+
+## Slide 13 — The config formats don't match (1 min)
+
+- **Skippable** if time is tight — slides 14 and 15 re-cover the key formats. If you keep it, read it as a table, not row by row.
+- The five components and their mappings (verified against official docs):
+  - **Instructions:** `CLAUDE.md` → `AGENTS.md` (+ `AGENTS.override.md` for local overrides).
+  - **Subagents:** `.claude/agents/*.md` (Markdown) → `.codex/agents/*.toml` (TOML, `developer_instructions`).
+  - **Skills:** `.claude/skills/<name>/SKILL.md` (`context: fork`) → `.agents/skills/<name>/SKILL.md` (cross-tool).
+  - **Hooks:** `.claude/settings.json` (JSON) → `config.toml [hooks]` (TOML). **Not** `.codex/hooks.json` — a common misconception.
+  - **MCP servers:** `.mcp.json` (JSON) → `config.toml [mcp_servers]` (TOML).
+- Note at the bottom: Claude also reads `AGENTS.md` as a fallback when `CLAUDE.md` is absent — the cheapest first step.
+
+## Slide 14 — Manual migration: five formats to rewrite (1.5 min)
+
+- The five cards map 1:1 to slide 13's table, reframed as work items.
+- Emphasise the *maintenance* cost, not just the one-time move: every format is rewritten *and must stay in sync* as context evolves (drift returns).
+- Mention Codex's `/import` feature can assist (e.g. skills), but it doesn't remove the per-format work.
+- Setup for slide 15: *"Every one of these five rewrites is exactly what APM does for you — automatically."*
+
+## Slide 15 — APM: one source, many harnesses (1.5 min)
+
+- This is the payoff of the migration block and the bridge back into the APM story.
+- Left (manifest once): write harness-agnostic primitives under `.apm/` once — the same 8 primitives power every target. `apm init` creates `apm.yml`.
+- Right (compile to any harness): `apm compile -t claude` → `CLAUDE.md`, `.mcp.json`, `.claude/`; `apm compile -t codex` → `AGENTS.md`, `config.toml`, `.codex/`, `.agents/`. One source of truth, **nine compile targets** (Antigravity CLI-only).
+- Tie it together with the migration narrative: **you never hand-migrate — you recompile.** APM is the migration layer that makes harness swaps (and future ones) a non-event.
+
+## Slide 16 — AgentRC, part 1 (2 min)
 
 - **Caveat upfront:** the AgentRC repo is currently marked **experimental** with a Warning banner. Fine to pilot; pin a commit if you adopt it.
 - Reframe: *"If APM is the manifest, AgentRC is what writes the content that goes in the manifest."*
 - Three commands map to the lifecycle: **measure** (`readiness`), **generate** (`instructions`), **maintain** (`eval`).
 - The eval angle is the one most people miss: **instructions only matter if they actually improve agent responses.** AgentRC measures that and fails CI if context regresses.
 
-## Slide 13 — AgentRC + APM integration (1.5 min)
+## Slide 17 — AgentRC + APM integration (1.5 min)
 
 - The flow diagram is the slide: repo → AgentRC measures and generates → outputs are `.instructions.md`, `mcp.json`, `eval.json` → those drop into an `apm.yml` → `apm install` distributes org-wide.
 - Critical compatibility point: **the `.instructions.md` format is shared.** No conversion when moving content from AgentRC into an APM package.
 - The three cards map to three personas: solo dev (in your project), team lead (for your team), platform engineer (at scale).
 
-## Slide 14 — Adoption path (2 min)
+## Slide 18 — Adoption path (2 min)
 
 - Six steps. **Most teams should do steps 1–3 this week, 4–6 over a quarter.**
 - For dev managers in the room: step 5 (CI gating) is the one that prevents backsliding. Don't skip it.
+- Step 1 covers installation: `curl -sSL https://aka.ms/apm-unix | sh` on macOS/Linux, or `irm https://aka.ms/apm-windows | iex` on Windows.
 
-## Slide 15 — Three takeaways (1 min)
+## Slide 19 — Three takeaways (1 min)
 
 - Read the three lines verbatim — they're the message you want them to repeat to their colleagues.
 - Then surface the Q&A prompts to seed discussion.
 
-## Slide 16 — Q&A (open-ended)
+## Closing — Q&A (open-ended)
 
 - Anticipated questions and short answers:
   - *"How is this different from MCP?"* — MCP is a protocol for tools. APM is a manifest+installer for everything agents need (including MCP servers). They compose.
@@ -130,6 +166,8 @@
   - *"Is it production-ready?"* — APM is the more mature project; AgentRC is explicitly experimental. Roll out APM first; pilot AgentRC on a non-critical repo.
   - *"What about secrets in MCP configs?"* — Standard env-var indirection; APM doesn't store secrets, it references them.
   - *"Migration from existing `copilot-instructions.md`?"* — Drop it into a local package, reference from `apm.yml`, gradually decompose.
+  - *"Do I have to migrate all my Claude config by hand?"* — No need to hand-migrate at all. Declare the primitives in `.apm/` once and `apm compile -t codex` / `-t claude` renders each harness's files. Migration becomes a recompile, not a rewrite.
+  - *"Is Codex hooks config really in `config.toml`?"* — Yes. Codex hooks live in the `[hooks]` table of `.codex/config.toml`, not a separate `.codex/hooks.json`.
 
 ---
 
