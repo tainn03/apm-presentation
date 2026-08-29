@@ -20,9 +20,10 @@ Manager — sets out to fix. And it pairs with [**AgentRC**](https://github.com/
 to close the loop on *generating* and *evaluating* that context in the first place.
 
 This post walks the same arc as the talk: **problem → idea → guarantees → primitives
-→ commands → plugins → security → governance → AgentRC → adoption**. By the end you
-should be able to (a) explain APM in one sentence, (b) run `apm install` on Monday,
-and (c) know where AgentRC fits.
+→ commands → plugins → security → governance → AgentRC → migration (Claude Code →
+Codex) → adoption**. By the end you should be able to (a) explain APM in one
+sentence, (b) run `apm install` on Monday, (c) know where AgentRC fits, and (d) see
+how APM absorbs a harness migration.
 
 ---
 
@@ -99,9 +100,9 @@ APM makes three headline guarantees. Memorise them; everything else flows from t
 ### Portable by manifest
 
 One `apm.yml` describes every primitive — instructions, skills, prompts, agents,
-hooks, plugins, MCP servers — and `apm install` reproduces the same setup across
-every harness on every machine. `apm.lock.yaml` pins the resolved tree the way
-`package-lock.json` does for npm.
+commands, hooks, plugins, MCP servers — and `apm install` reproduces the same
+setup across every harness on every machine. `apm.lock.yaml` pins the resolved
+tree the way `package-lock.json` does for npm.
 
 ### Secure by default
 
@@ -118,7 +119,7 @@ and transitive MCP servers. Tighten-only inheritance flows enterprise → org �
 
 ## 4. What an APM package can contain
 
-Six primitive types. You can mix and match.
+Eight primitive types. You can mix and match.
 
 | Primitive | What it is |
 |---|---|
@@ -126,7 +127,9 @@ Six primitive types. You can mix and match.
 | **Skills** | Reusable capabilities in the Agent Skills format. Drop-in from `anthropics/skills` or any repo. |
 | **Prompts** | Slash-command prompts that work across harnesses. |
 | **Agents** | Single-purpose agent primitives — e.g. `api-architect.agent.md`. |
-| **Plugins** | Author once, export a standard `plugin.json` for Copilot / Claude / Cursor. |
+| **Commands** | CLI-style commands sourced from `.apm/prompts/` — the same `.prompt.md` renders as a Copilot prompt or a Claude `/command`. (There is no separate `.apm/commands/`.) |
+| **Hooks** | Event-driven lifecycle hooks (PreToolUse, PostToolUse, Stop, …) that run at install time. |
+| **Plugins** | Author once, export a standard `plugin.json` for Copilot / Claude / Cursor. A bundle of the other primitives. |
 | **MCP servers** | Declared in the same manifest. Policy-checked before they touch disk. |
 
 This is the part most people underrate. APM isn't only about instructions. It's a
@@ -192,6 +195,7 @@ The same packages render to whatever your team uses:
 ```
 apm.yml  →  apm compile  →  GitHub Copilot · Claude Code · Cursor
                             OpenCode · Codex · Gemini · Windsurf
+                            Grok Build · Kiro
 ```
 
 For Copilot specifically, `apm install` is **zero-config**: it writes the files
@@ -201,9 +205,11 @@ that VS Code and GitHub Copilot already expect (`.github/instructions/`,
 
 For other harnesses, `apm compile` emits `AGENTS.md` in the repo root (the open
 [agents.md](https://agents.md) standard) plus the harness-specific rules trees. So
-if a teammate uses Claude Code, Cursor, Codex, Gemini, OpenCode, or Windsurf, their
-agent is configured from the same manifest. It's your hedge against agent vendor
-lock-in: **context survives the harness.**
+if a teammate uses Claude Code, Cursor, Codex, Gemini, Windsurf, OpenCode, Grok
+Build, or Kiro, their agent is configured from the same manifest. That's **nine
+compile targets** in total — plus the **Antigravity** target, which is CLI-only
+(`--target antigravity`). It's your hedge against agent vendor lock-in: **context
+survives the harness.**
 
 ---
 
@@ -363,11 +369,54 @@ Three personas, three flows:
 
 ---
 
-## 12. How to start on Monday
+## 12. Changing harnesses: Claude Code → Codex
+
+The same "one manifest" story answers a question teams increasingly hit: *what if
+we move from Anthropic's Claude Code to OpenAI's Codex CLI?* On the surface the two
+harnesses are peers — subagents, hooks, skills, and MCP in both — but each encodes
+them in a **different file format**.
+
+| Component | Claude Code | Codex CLI |
+|---|---|---|
+| Instructions | `CLAUDE.md` | `AGENTS.md` (+ `AGENTS.override.md`) |
+| Subagents | `.claude/agents/*.md` (Markdown) | `.codex/agents/*.toml` (TOML, `developer_instructions`) |
+| Skills | `.claude/skills/<name>/SKILL.md` (`context: fork`) | `.agents/skills/<name>/SKILL.md` (cross-tool) |
+| Hooks | `.claude/settings.json` (JSON) | `config.toml` `[hooks]` (TOML) |
+| MCP servers | `.mcp.json` (JSON) | `config.toml` `[mcp_servers]` (TOML) |
+
+Two accuracy notes worth keeping straight:
+
+- **Hooks are not** `.codex/hooks.json`. Codex reads hooks from the `[hooks]` table
+  of `.codex/config.toml`.
+- Claude *also* reads `AGENTS.md` as a fallback when `CLAUDE.md` is absent — so
+  standardising on `AGENTS.md` is a cheap first step regardless of direction.
+
+Doing this migration by hand is five parallel rewrites (`CLAUDE.md` → `AGENTS.md`,
+Markdown agents → TOML, JSON hooks → TOML, JSON MCP → TOML, skills consolidation).
+And because context is code, every rewrite must then *stay in sync* as the repo and
+its conventions evolve. That's exactly the drift problem APM was built to kill.
+
+**With APM you don't migrate — you recompile.** Declare each primitive once under
+`.apm/`, and let APM render the exact format each harness expects:
+
+```bash
+$ apm compile -t claude   # → CLAUDE.md, .mcp.json, .claude/, .agents/skills/
+$ apm compile -t codex    # → AGENTS.md, config.toml, .codex/, .agents/
+```
+
+One source of truth; however many harnesses. If the org later moves to a *third*
+harness, or splits Claude and Codex across teams, the manifest doesn't change —
+only a new `-t` target does. APM is the abstraction layer that turns agent-vendor
+switches from a migration project into a recompile.
+
+---
+
+## 13. How to start on Monday
 
 Six steps. Most teams should do steps 1–3 this week, 4–6 over the next quarter.
 
-1. **Try it.** `curl -sSL https://aka.ms/apm-unix | sh`, then
+1. **Try it.** Install with `curl -sSL https://aka.ms/apm-unix | sh` (macOS/Linux)
+   or `irm https://aka.ms/apm-windows | iex` (Windows), then
    `apm install microsoft/apm-sample-package` on a throwaway repo.
 2. **Measure your repo.** `npx github:microsoft/agentrc readiness` gives you a
    maturity score and a list of missing context to add first.
@@ -381,13 +430,15 @@ Six steps. Most teams should do steps 1–3 this week, 4–6 over the next quart
 
 ---
 
-## 13. Three things to take away
+## 14. Three things to take away
 
 1. **Agent context is code.** Version it, pin it, ship it like dependencies.
 2. **APM gives you the manifest. AgentRC gives you the content.** Together they
    close the loop.
 3. **Security and governance are not afterthoughts.** Hashes, audits, policy — on
    every install, by default.
+4. **You don't migrate harnesses — you recompile.** Declare once under `.apm/` and
+   `apm compile` renders each harness's format. Vendor switches stop being projects.
 
 If you remember one line, make it this one:
 
@@ -403,9 +454,12 @@ If you remember one line, make it this one:
 - [github.com/microsoft/agentrc](https://github.com/microsoft/agentrc)
 - [agents.md](https://agents.md)
 - [modelcontextprotocol.io](https://modelcontextprotocol.io)
+- [OpenAI Codex](https://openai.com/codex/)
+- [Claude Code docs](https://code.claude.com/docs/)
 
 ## Questions worth chewing on
 
 - What's the first APM package your team would build?
 - Which MCP servers belong in your org allow-list?
 - Where would AgentRC's eval loop fit in your CI today?
+- If you standardised on APM, how much of a Claude Code → Codex (or any-harness) move becomes a recompile instead of a rewrite?
