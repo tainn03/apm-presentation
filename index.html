@@ -667,6 +667,135 @@ acme/code-review/
 </section>
 
 <section class="slide">
+  <div class="eyebrow">Claude Code → Codex — part 1 of 4</div>
+  <h1>Why migrate from Claude Code to Codex?</h1>
+  <h3>Agents are now part of your dependency tree. Switching harnesses means re-packaging every piece of context.</h3>
+  <div class="two-col full">
+    <div class="col">
+      <h2>Motivations</h2>
+      <ul>
+        <li><strong>AGENTS.md is the open standard</strong> — Codex pioneered it, built on an unopinionated spec</li>
+        <li><strong>Model flexibility</strong> — route work across OpenAI models, not one vendor's stack</li>
+        <li><strong>Policy &amp; licensing</strong> — evaluate a harness on your own security and contract terms</li>
+        <li><strong>First-class tooling</strong> — subagents, hooks, MCP, and skills in both; formats differ</li>
+      </ul>
+    </div>
+    <div class="col">
+      <h2>The cost without APM</h2>
+      <p>Each harness configures the <em>same ideas</em> in a <strong>different format</strong>:</p>
+      <ul>
+        <li>Instructions: <code>CLAUDE.md</code> vs <code>AGENTS.md</code></li>
+        <li>Subagents: Markdown vs TOML</li>
+        <li>Hooks: JSON vs TOML tables</li>
+        <li>MCP: <code>.mcp.json</code> vs <code>config.toml</code></li>
+      </ul>
+      <p style="color:var(--cp-text-muted); font-size:14px;">Migrating by hand means rewriting every file — once per target, forever.</p>
+    </div>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">Claude Code → Codex — part 2 of 4</div>
+  <h1>The config formats don't match</h1>
+  <h3>Same concepts, different file formats — this is the real migration friction.</h3>
+  <div style="overflow-x:auto;">
+    <table style="width:100%; border-collapse:collapse; font-size:15px;">
+      <thead>
+        <tr>
+          <th style="text-align:left; padding:8px 10px; border-bottom:2px solid var(--cp-warning);">Component</th>
+          <th style="text-align:left; padding:8px 10px; border-bottom:2px solid var(--cp-warning);">Claude Code</th>
+          <th style="text-align:left; padding:8px 10px; border-bottom:2px solid var(--cp-warning);">Codex CLI</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="padding:8px 10px; border-bottom:1px solid color-mix(in srgb, var(--cp-text-muted) 25%, transparent);"><strong>Instructions</strong></td>
+          <td style="padding:8px 10px; border-bottom:1px solid color-mix(in srgb, var(--cp-text-muted) 25%, transparent);"><code>CLAUDE.md</code></td>
+          <td style="padding:8px 10px; border-bottom:1px solid color-mix(in srgb, var(--cp-text-muted) 25%, transparent);"><code>AGENTS.md</code> (+ <code>AGENTS.override.md</code>)</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 10px; border-bottom:1px solid color-mix(in srgb, var(--cp-text-muted) 25%, transparent);"><strong>Subagents</strong></td>
+          <td style="padding:8px 10px; border-bottom:1px solid color-mix(in srgb, var(--cp-text-muted) 25%, transparent);"><code>.claude/agents/*.md</code> (Markdown)</td>
+          <td style="padding:8px 10px; border-bottom:1px solid color-mix(in srgb, var(--cp-text-muted) 25%, transparent);"><code>.codex/agents/*.toml</code> (<code>developer_instructions</code>)</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 10px; border-bottom:1px solid color-mix(in srgb, var(--cp-text-muted) 25%, transparent);"><strong>Skills</strong></td>
+          <td style="padding:8px 10px; border-bottom:1px solid color-mix(in srgb, var(--cp-text-muted) 25%, transparent);"><code>.claude/skills/&lt;name&gt;/SKILL.md</code> (<code>context: fork</code>)</td>
+          <td style="padding:8px 10px; border-bottom:1px solid color-mix(in srgb, var(--cp-text-muted) 25%, transparent);"><code>.agents/skills/&lt;name&gt;/SKILL.md</code> (cross-tool)</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 10px; border-bottom:1px solid color-mix(in srgb, var(--cp-text-muted) 25%, transparent);"><strong>Hooks</strong></td>
+          <td style="padding:8px 10px; border-bottom:1px solid color-mix(in srgb, var(--cp-text-muted) 25%, transparent);"><code>.claude/settings.json</code> (JSON)</td>
+          <td style="padding:8px 10px; border-bottom:1px solid color-mix(in srgb, var(--cp-text-muted) 25%, transparent);"><code>config.toml</code> <code>[hooks]</code> (TOML)</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 10px;"><strong>MCP servers</strong></td>
+          <td style="padding:8px 10px;"><code>.mcp.json</code> (JSON)</td>
+          <td style="padding:8px 10px;"><code>config.toml</code> <code>[mcp_servers]</code> (TOML)</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p style="color:var(--cp-text-muted); font-size:14px; margin-top:10px;">
+    Note: Claude also reads <code>AGENTS.md</code> as a fallback when <code>CLAUDE.md</code> is absent — a useful first step.
+  </p>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">Claude Code → Codex — part 3 of 4</div>
+  <h1>Manual migration: five formats to rewrite</h1>
+  <h3>Without orchestration, each of these is hand-work — and must be kept in sync forever.</h3>
+  <div class="grid">
+    <div class="card">
+      <h4>1 · Instructions</h4>
+      <p><code>CLAUDE.md</code> → <code>AGENTS.md</code> (Codex reads it natively; <code>AGENTS.override.md</code> for local edits)</p>
+    </div>
+    <div class="card">
+      <h4>2 · Subagents</h4>
+      <p><code>.claude/agents/*.md</code> → <code>.codex/agents/*.toml</code>, rewriting frontmatter into <code>developer_instructions</code></p>
+    </div>
+    <div class="card">
+      <h4>3 · Skills</h4>
+      <p>Consolidate <code>.claude/skills/</code> into cross-tool <code>.agents/skills/</code> (Codex <code>/import</code> can assist)</p>
+    </div>
+    <div class="card">
+      <h4>4 · Hooks</h4>
+      <p><code>.claude/settings.json</code> events → <code>config.toml [hooks]</code> tables, translating each event/matcher</p>
+    </div>
+    <div class="card">
+      <h4>5 · MCP</h4>
+      <p><code>.mcp.json</code> <code>mcpServers</code> → <code>config.toml [mcp_servers.&lt;name&gt;]</code> entries</p>
+    </div>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">Claude Code → Codex — part 4 of 4</div>
+  <h1>APM: one source, many harnesses</h1>
+  <h3>Write harness-agnostic primitives once; compile to the exact format each agent expects.</h3>
+  <div class="two-col full">
+    <div class="col">
+      <h2>Manifest once</h2>
+      <div class="terminal">
+<pre class="code"><span class="prompt">$</span> apm init           <span class="muted"># creates apm.yml</span>
+<span class="cmt"># primitives live in .apm/: instructions, prompts,
+# agents, skills, hooks, commands, plugins, MCP</span></pre>
+      </div>
+      <p style="color:var(--cp-text-muted); font-size:14px;">Same 8 primitives power every target. No per-harness rewrites.</p>
+    </div>
+    <div class="col">
+      <h2>Compile to any harness</h2>
+      <div class="terminal">
+<pre class="code"><span class="prompt">$</span> apm compile -t claude   <span class="cmt"># -> CLAUDE.md, .mcp.json, .claude/</span>
+<span class="prompt">$</span> apm compile -t codex    <span class="cmt"># -> AGENTS.md, config.toml, .codex/, .agents/</span>
+<span class="muted"># ... plus 7 more targets, incl. Grok Build &amp; Kiro</span></pre>
+      </div>
+      <p style="color:var(--cp-text-muted); font-size:14px;">One source of truth; <strong>nine compile targets</strong> in total (Antigravity is CLI-only).</p>
+    </div>
+  </div>
+</section>
+
+<section class="slide">
   <div class="eyebrow">AgentRC — part 1 of 2 · <span style="color:var(--cp-warning);">experimental</span></div>
   <h1>AgentRC: context engineering, automated</h1>
   <h3>APM <em>distributes</em> agent context. AgentRC <em>generates</em> and <em>maintains</em> it. <span style="color:var(--cp-text-muted); font-size:14px; font-weight:400;">(repo is marked experimental — pin a commit if you adopt it)</span></h3>
